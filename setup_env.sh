@@ -48,21 +48,24 @@ create_environment() {
     # Extract the major and minor version numbers from the Python version string
     PYTHON_MAJOR_MINOR=$(echo $PYTHON_VERSION | grep -oP '\d+\.\d+')
 
-    $CONDA_CMD deactivate
-    $CONDA_CMD remove -n "$ENV_NAME" --all -y
+    # Deactivate current environment if any (use conda deactivate for both conda and mamba)
+    conda deactivate 2>/dev/null || true
+
+    # Remove existing environment if it exists
+    if $CONDA_CMD env list | grep -q "^$ENV_NAME "; then
+        echo "Removing existing environment '$ENV_NAME'..."
+        $CONDA_CMD env remove -n "$ENV_NAME" -y
+    fi
+
+    # Create new environment
     $CONDA_CMD create -n "$ENV_NAME" python=$PYTHON_MAJOR_MINOR -y
 
     echo "$CONDA_CMD environment '$ENV_NAME' created with Python $PYTHON_MAJOR_MINOR"
 
-    # Activate the conda environment
-    $CONDA_CMD activate "$ENV_NAME"
-
-    $CONDA_CMD deactivate
-
     echo -e "[INFO] Created $CONDA_CMD environment named '$ENV_NAME'.\n"
     echo -e "\t\t1. To activate the environment, run:                $CONDA_CMD activate $ENV_NAME"
-    echo -e "\t\t2. To install the package, run:                     bash setup_mamba.sh --install"
-    echo -e "\t\t3. To deactivate the environment, run:              $CONDA_CMD deactivate"
+    echo -e "\t\t2. To install the package, run:                     bash setup_env.sh --install"
+    echo -e "\t\t3. To deactivate the environment, run:              conda deactivate"
     echo -e "\n"
 }
 
@@ -91,9 +94,17 @@ elif [[ "$1" == "--mamba" ]]; then
     # Initialize mamba (miniforge)
     if [ -f "$HOME/miniforge3/etc/profile.d/conda.sh" ]; then
         . "$HOME/miniforge3/etc/profile.d/conda.sh"
+    elif [ -f "$HOME/mambaforge/etc/profile.d/conda.sh" ]; then
+        . "$HOME/mambaforge/etc/profile.d/conda.sh"
     else
-        echo "Mamba initialization script not found. Please install Miniforge3."
+        echo "Mamba initialization script not found. Please install Miniforge3 or Mambaforge."
         exit 1
+    fi
+    # Also source mamba.sh if available for full mamba support
+    if [ -f "$HOME/miniforge3/etc/profile.d/mamba.sh" ]; then
+        . "$HOME/miniforge3/etc/profile.d/mamba.sh"
+    elif [ -f "$HOME/mambaforge/etc/profile.d/mamba.sh" ]; then
+        . "$HOME/mambaforge/etc/profile.d/mamba.sh"
     fi
     create_environment "mamba" "$ENV_NAME"
 
@@ -121,22 +132,39 @@ elif [[ "$1" == "--install" ]]; then
     pip install uv
     uv pip install --upgrade pip
 
+    # Save the project root directory
+    PROJECT_ROOT=$(pwd)
+    PYBIND_DIR="$PROJECT_ROOT/xensevr-pc-service-pybind"
+
     # Install the required packages
-    cd xensevr-pc-service-pybind
+    cd "$PYBIND_DIR"
     mkdir -p dependencies
     cd dependencies
-    git clone https://github.com/Vertax42/XRoboToolkit-PC-Service.git
-    cd XRoboToolkit-PC-Service/RoboticsService/PXREARobotSDK
+
+    # Clone if not already cloned
+    if [ ! -d "XenseVR-PC-Service" ]; then
+        git clone https://github.com/Vertax42/XenseVR-PC-Service.git
+    fi
+
+    cd XenseVR-PC-Service/RoboticsService/PXREARobotSDK
     bash build.sh
-    cd ../../..
+
+    # Go back to pybind directory
+    cd "$PYBIND_DIR"
     mkdir -p lib
     mkdir -p include
-    cp dependencies/XRoboToolkit-PC-Service/RoboticsService/PXREARobotSDK/PXREARobotSDK.h include/
-    cp -r dependencies/XRoboToolkit-PC-Service/RoboticsService/PXREARobotSDK/nlohmann include/nlohmann/
-    cp dependencies/XRoboToolkit-PC-Service/RoboticsService/PXREARobotSDK/build/libPXREARobotSDK.so lib/
-    pip uninstall -y xensevr_pc_service_sdk
+
+    # Copy files from the cloned repo
+    SDK_DIR="$PYBIND_DIR/dependencies/XenseVR-PC-Service/RoboticsService/PXREARobotSDK"
+    cp "$SDK_DIR/PXREARobotSDK.h" include/
+    cp -r "$SDK_DIR/nlohmann" include/
+    cp "$SDK_DIR/build/libPXREARobotSDK.so" lib/
+
+    pip uninstall -y xensevr_pc_service_sdk 2>/dev/null || true
     python setup.py install
 
+    # Go back to project root and install main package
+    cd "$PROJECT_ROOT"
     uv pip install -e . || { echo "Failed to install xensepico_teleop with pip"; exit 1; }
 
     echo -e "\n"

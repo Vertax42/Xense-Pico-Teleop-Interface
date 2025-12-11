@@ -24,7 +24,7 @@ dev = [
 ]
 
 [tool.setuptools]
-packages = ["xensepico_teleop"]
+packages = ["xensevr-pc-service-pybind"]
 
 [tool.setuptools.package-data]
 # xrobotoolkit_teleop = ["../assets/**/*"]
