@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "xensepico_teleop"
+version = "0.1.0"
+description = "Pico teleop interface SDK for XenseVR PC Service in Python"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [
+    {name = "Vertax", email = "yangxincheng@xenserobotics.com"}
+]
+dependencies = [
+    "xensevr_pc_service_sdk",
+    "numpy",
+    "pybind11",
+]
+
+[project.optional-dependencies]
+dev = [
+    "black",
+]
+
+[tool.setuptools]
+packages = ["xensepico_teleop"]
+
+[tool.setuptools.package-data]
+# xrobotoolkit_teleop = ["../assets/**/*"]
+
+[tool.black]
+line-length = 120
