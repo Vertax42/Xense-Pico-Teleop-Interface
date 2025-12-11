@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+.eggs/
+dist/
+build/
+*.manifest
+*.spec
+
+# Virtual environments
+.env
+.venv
+env/
+venv/
+ENV/
+
+# IDE
+.idea/
+*.swp
+*.swo
+*~
+
+# Build artifacts for xensevr-pc-service-pybind
+xensevr-pc-service-pybind/build/
+xensevr-pc-service-pybind/dependencies/
+xensevr-pc-service-pybind/lib/
+xensevr-pc-service-pybind/include/PXREARobotSDK.h
+xensevr-pc-service-pybind/include/nlohmann/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
