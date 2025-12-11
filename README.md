@@ -24,21 +24,20 @@ This project provides a teleop interface SDK for XenseVR PC Service.
 
     ```bash
     bash setup_env.sh --mamba <optional_env_name>
-    mamba activate <optional_env_name>
+    mamba activate <optional_env_name> # or conda activate <optional_env_name>
     bash setup_env.sh --install
     ```
 
-    Or using Conda, you can use the following command:
+    If you are already in an existing conda/mamba environment, you can directly install:
 
     ```bash
-    bash setup_env.sh --conda <optional_env_name>
-    conda activate <optional_env_name>
+    conda activate <your_env_name>  # or mamba activate
     bash setup_env.sh --install
     ```
 
 ## Usage
 
-Use the following instructions to run example scripts. 
+Use the following instructions to run example scripts.
 
 **Example:** [ARX Dual Arm Data Converter](https://github.com/zhigenzhao/openpi/blob/dev/finetuning/examples/arx_r5/arx_dual/convert_dual_arm_data_to_lerobot.py)
 
