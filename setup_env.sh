@@ -165,10 +165,10 @@ elif [[ "$1" == "--install" ]]; then
 
     # Go back to project root and install main package
     cd "$PROJECT_ROOT"
-    uv pip install -e . || { echo "Failed to install xensepico_teleop with pip"; exit 1; }
+    uv pip install -e . || { echo "Failed to install xensevr_pc_service_sdk with pip"; exit 1; }
 
     echo -e "\n"
-    echo -e "[INFO] xensepico_teleop is installed in $CONDA_CMD environment '$ENV_NAME'.\n"
+    echo -e "[INFO] xensevr_pc_service_sdk is installed in $CONDA_CMD environment '$ENV_NAME'.\n"
     echo -e "\n"
 else
     echo "Invalid argument. Usage:"
