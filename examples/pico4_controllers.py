@@ -53,6 +53,31 @@ def run_tests():
             print(f"  Left  Trigger: {left_trigger:6.3f}    Grip: {left_grip:6.3f}")
             print(f"  Right Trigger: {right_trigger:6.3f}    Grip: {right_grip:6.3f}")
 
+            # Motion Trackers
+            num_trackers = xrt.num_motion_data_available()
+            if num_trackers > 0:
+                tracker_poses = xrt.get_motion_tracker_pose()
+                tracker_velocities = xrt.get_motion_tracker_velocity()
+                tracker_accelerations = xrt.get_motion_tracker_acceleration()
+                tracker_serial_numbers = xrt.get_motion_tracker_serial_numbers()
+
+                print(f"\n[Motion Trackers]  ({num_trackers} tracker(s) available)")
+                for idx in range(num_trackers):
+                    pose = tracker_poses[idx]
+                    vel = tracker_velocities[idx]
+                    acc = tracker_accelerations[idx]
+                    sn = tracker_serial_numbers[idx] if idx < len(tracker_serial_numbers) else "N/A"
+
+                    print(f"\n  Tracker {idx + 1} (SN: {sn})")
+                    print(f"    Position:     x={pose[0]:8.4f}  y={pose[1]:8.4f}  z={pose[2]:8.4f}")
+                    print(f"    Quaternion:  qx={pose[3]:8.4f} qy={pose[4]:8.4f} qz={pose[5]:8.4f} qw={pose[6]:8.4f}")
+                    print(f"    Linear Vel:  vx={vel[0]:8.4f} vy={vel[1]:8.4f} vz={vel[2]:8.4f}")
+                    print(f"    Angular Vel: wx={vel[3]:8.4f} wy={vel[4]:8.4f} wz={vel[5]:8.4f}")
+                    print(f"    Linear Acc:  ax={acc[0]:8.4f} ay={acc[1]:8.4f} az={acc[2]:8.4f}")
+                    print(f"    Angular Acc: wax={acc[3]:8.4f} way={acc[4]:8.4f} waz={acc[5]:8.4f}")
+            else:
+                print(f"\n[Motion Trackers]  No trackers available")
+
             print("\n" + "=" * 60)
             print("  Press Ctrl+C to exit")
             print("=" * 60)
