@@ -22,6 +22,9 @@ dependencies = [
 dev = [
     "black",
 ]
+visualization = [
+    "rerun-sdk>=0.18",
+]
 
 [tool.setuptools]
 packages = ["xensevr-pc-service-pybind"]
