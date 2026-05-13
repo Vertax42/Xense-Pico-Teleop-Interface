@@ -29,6 +29,59 @@ import xensevr_pc_service_sdk as xrt
 TRACKER_TRAIL_MAX_POINTS = 50
 CONTROLLER_TRAIL_MAX_POINTS = 50
 
+ANSI_HIDE_CURSOR = "\033[?25l"
+ANSI_SHOW_CURSOR = "\033[?25h"
+
+
+def _fmt_pos(pose) -> str:
+    return f"p=({pose[0]:+7.3f},{pose[1]:+7.3f},{pose[2]:+7.3f})"
+
+
+def _fmt_quat(pose) -> str:
+    return f"q=({pose[3]:+6.3f},{pose[4]:+6.3f},{pose[5]:+6.3f},{pose[6]:+6.3f})"
+
+
+def _fmt_rpy(pose) -> str:
+    r, p, y = quaternion_to_euler_degrees(
+        float(pose[3]), float(pose[4]), float(pose[5]), float(pose[6])
+    )
+    return f"rpy=({r:+6.1f},{p:+6.1f},{y:+6.1f})"
+
+
+def format_status_block(
+    iteration: int,
+    elapsed: float,
+    headset_pose,
+    left_pose, left_trigger: float, left_grip: float,
+    right_pose, right_trigger: float, right_grip: float,
+    num_trackers: int,
+    tracker_poses,
+    tracker_serial_numbers,
+) -> list:
+    """Return a list of formatted lines for an in-place dashboard refresh."""
+    bar = "─" * 96
+    header = f"── Pico4 Telemetry  iter={iteration:>6}  t={elapsed:7.2f}s ".ljust(96, "─")
+    lines = [
+        header,
+        f"  Headset      {_fmt_pos(headset_pose)}  {_fmt_quat(headset_pose)}  {_fmt_rpy(headset_pose)}",
+        f"  Left  ctrl   {_fmt_pos(left_pose)}  {_fmt_quat(left_pose)}  trig={left_trigger:.2f}  grip={left_grip:.2f}",
+        f"  Right ctrl   {_fmt_pos(right_pose)}  {_fmt_quat(right_pose)}  trig={right_trigger:.2f}  grip={right_grip:.2f}",
+        f"  Trackers ({num_trackers}):",
+    ]
+    if num_trackers > 0 and tracker_poses is not None:
+        for idx in range(num_trackers):
+            pose = tracker_poses[idx]
+            sn = tracker_serial_numbers[idx] if idx < len(tracker_serial_numbers) else f"tracker_{idx}"
+            sn_text = sn.decode("utf-8", errors="replace") if isinstance(sn, bytes) else str(sn)
+            sn_display = (sn_text[:14] if len(sn_text) > 14 else sn_text).ljust(14)
+            lines.append(
+                f"    [{idx}] {sn_display}  {_fmt_pos(pose)}  {_fmt_quat(pose)}  {_fmt_rpy(pose)}"
+            )
+    else:
+        lines.append("    (no trackers connected)")
+    lines.append(bar)
+    return lines
+
 
 def log_fading_trail(entity_path: str, trail_points: list, color, radius: float = 0.004):
     """Render a poly-line as N-1 segments with alpha fading from old (faint) to new (solid)."""
@@ -370,6 +423,9 @@ def run_visualization():
             [0, 206, 209, 200],
             [255, 20, 147, 200],
         ]
+        log_line_count = 0
+        sys.stdout.write(ANSI_HIDE_CURSOR)
+        sys.stdout.flush()
         iteration = 0
         while True:
             rr.set_time("frame", sequence=iteration)
@@ -491,6 +547,8 @@ def run_visualization():
 
             # === Log Motion Trackers ===
             num_trackers = xrt.num_motion_data_available()
+            tracker_poses = None
+            tracker_serial_numbers = None
             if num_trackers > 0:
                 tracker_poses = xrt.get_motion_tracker_pose()
                 tracker_serial_numbers = xrt.get_motion_tracker_serial_numbers()
@@ -536,9 +594,27 @@ def run_visualization():
                 )
             )
 
-            # Print status to console periodically
-            if iteration % 50 == 0:
-                print(f"[{iteration}] Headset: ({headset_pose[0]:.2f}, {headset_pose[1]:.2f}, {headset_pose[2]:.2f}) | Trackers: {num_trackers}")
+            # === Console dashboard (every 5 iters, ~10 Hz) ===
+            if iteration % 5 == 0:
+                elapsed = time.monotonic() - start_time
+                lines = format_status_block(
+                    iteration=iteration,
+                    elapsed=elapsed,
+                    headset_pose=headset_pose,
+                    left_pose=left_pose, left_trigger=left_trigger, left_grip=left_grip,
+                    right_pose=right_pose, right_trigger=right_trigger, right_grip=right_grip,
+                    num_trackers=num_trackers,
+                    tracker_poses=tracker_poses if num_trackers > 0 else None,
+                    tracker_serial_numbers=tracker_serial_numbers if num_trackers > 0 else None,
+                )
+                buf = []
+                if log_line_count > 0:
+                    buf.append(f"\033[{log_line_count}F\033[J")
+                buf.append("\n".join(lines))
+                buf.append("\n")
+                sys.stdout.write("".join(buf))
+                sys.stdout.flush()
+                log_line_count = len(lines)
 
             time.sleep(0.02)  # ~50 Hz
             iteration += 1
@@ -552,7 +628,9 @@ def run_visualization():
         import traceback
         traceback.print_exc()
     finally:
-        print("\nClosing SDK...")
+        sys.stdout.write(ANSI_SHOW_CURSOR + "\n")
+        sys.stdout.flush()
+        print("Closing SDK...")
         xrt.close()
         print("SDK closed.")
         print("Visualization finished.")
