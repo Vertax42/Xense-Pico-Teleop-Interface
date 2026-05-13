@@ -17,6 +17,7 @@ Note: Despite Pico docs saying "right-handed", the actual axis convention
 (X right, Y up, Z in) is LEFT-HANDED.
 """
 
+import os
 import sys
 import time
 import math
@@ -338,7 +339,14 @@ def log_tracker_pose(
 
 def setup_rerun():
     """Initialize Rerun and set up the scene."""
-    rr.init("Pico4 Controller Visualization", spawn=True)
+    # Batch IPC writes — default flush threshold is small and causes per-log roundtrips,
+    # which dominates cost when we emit ~90 log calls per frame. 64 KB matches LeRobot's setting.
+    os.environ.setdefault("RERUN_FLUSH_NUM_BYTES", "65536")
+
+    rr.init("Pico4 Controller Visualization")
+    # Cap viewer memory so long sessions don't balloon (LeRobot default).
+    rr.spawn(memory_limit=os.environ.get("RERUN_MEMORY_LIMIT", "500MB"))
+
 
     # Pico coordinate system: X=Right, Y=Up, Z=Forward/In (away from user)
     # This is LEFT-HANDED coordinate system (despite docs saying "right-handed")
