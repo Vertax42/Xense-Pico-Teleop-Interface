@@ -27,6 +27,30 @@ import xensevr_pc_service_sdk as xrt
 
 
 TRACKER_TRAIL_MAX_POINTS = 50
+CONTROLLER_TRAIL_MAX_POINTS = 50
+
+
+def log_fading_trail(entity_path: str, trail_points: list, color, radius: float = 0.004):
+    """Render a poly-line as N-1 segments with alpha fading from old (faint) to new (solid)."""
+    if len(trail_points) < 2:
+        return
+    base_rgb = [int(c) for c in color[:3]]
+    n = len(trail_points)
+    segments = []
+    segment_colors = []
+    for i in range(n - 1):
+        t = (i + 1) / (n - 1)
+        alpha = int(25 + 230 * t)
+        segments.append([trail_points[i], trail_points[i + 1]])
+        segment_colors.append(base_rgb + [alpha])
+    rr.log(
+        entity_path,
+        rr.LineStrips3D(
+            segments,
+            colors=segment_colors,
+            radii=radius,
+        )
+    )
 
 
 def quaternion_to_rotation_matrix(qx: float, qy: float, qz: float, qw: float) -> np.ndarray:
@@ -219,15 +243,7 @@ def log_tracker_pose(
         )
     )
 
-    if len(trail_points) >= 2:
-        rr.log(
-            f"{entity_path}/trail",
-            rr.LineStrips3D(
-                [trail_points],
-                colors=[color],
-                radii=0.004,
-            )
-        )
+    log_fading_trail(f"{entity_path}/trail", trail_points, color, radius=0.004)
 
     rr.log(f"tracker_values/{safe_name}/position/x", rr.Scalars(x))
     rr.log(f"tracker_values/{safe_name}/position/y", rr.Scalars(y))
@@ -343,6 +359,11 @@ def run_visualization():
 
         start_time = time.monotonic()
         tracker_trails = {}
+        controller_trails = {"left": [], "right": []}
+        controller_trail_colors = {
+            "left": [100, 200, 255],
+            "right": [255, 200, 100],
+        }
         tracker_colors = [
             [255, 165, 0, 200],
             [138, 43, 226, 200],
@@ -419,6 +440,15 @@ def run_visualization():
                     radii=0.005,
                 )
             )
+            # Fading trail
+            left_trail = controller_trails["left"]
+            left_trail.append([float(left_pose[0]), float(left_pose[1]), float(left_pose[2])])
+            if len(left_trail) > CONTROLLER_TRAIL_MAX_POINTS:
+                del left_trail[:-CONTROLLER_TRAIL_MAX_POINTS]
+            log_fading_trail(
+                "world/left_controller/trail", left_trail,
+                controller_trail_colors["left"], radius=0.005,
+            )
 
             # === Log Right Controller ===
             right_color = [
@@ -448,6 +478,15 @@ def run_visualization():
                     colors=[[255, 200, 100]],
                     radii=0.005,
                 )
+            )
+            # Fading trail
+            right_trail = controller_trails["right"]
+            right_trail.append([float(right_pose[0]), float(right_pose[1]), float(right_pose[2])])
+            if len(right_trail) > CONTROLLER_TRAIL_MAX_POINTS:
+                del right_trail[:-CONTROLLER_TRAIL_MAX_POINTS]
+            log_fading_trail(
+                "world/right_controller/trail", right_trail,
+                controller_trail_colors["right"], radius=0.005,
             )
 
             # === Log Motion Trackers ===
