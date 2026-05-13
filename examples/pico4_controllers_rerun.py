@@ -32,6 +32,22 @@ CONTROLLER_TRAIL_MAX_POINTS = 50
 ANSI_HIDE_CURSOR = "\033[?25l"
 ANSI_SHOW_CURSOR = "\033[?25h"
 
+MAIN_LOOP_HZ = 30.0
+MAIN_LOOP_DT = 1.0 / MAIN_LOOP_HZ
+
+
+def precise_sleep(seconds: float, busy_slack: float = 0.0015) -> None:
+    """Hybrid wait inspired by LeRobot's busy_wait: coarse `time.sleep` then a short
+    busy-spin on `time.perf_counter` for sub-ms accuracy without burning a full core."""
+    if seconds <= 0:
+        return
+    target = time.perf_counter() + seconds
+    coarse = seconds - busy_slack
+    if coarse > 0:
+        time.sleep(coarse)
+    while time.perf_counter() < target:
+        pass
+
 
 def _fmt_pos(pose) -> str:
     return f"p=({pose[0]:+7.3f},{pose[1]:+7.3f},{pose[2]:+7.3f})"
@@ -410,7 +426,7 @@ def run_visualization():
 
         time.sleep(1)
 
-        start_time = time.monotonic()
+        start_time = time.perf_counter()
         tracker_trails = {}
         controller_trails = {"left": [], "right": []}
         controller_trail_colors = {
@@ -428,8 +444,9 @@ def run_visualization():
         sys.stdout.flush()
         iteration = 0
         while True:
+            loop_start = time.perf_counter()
             rr.set_time("frame", sequence=iteration)
-            rr.set_time("time", duration=time.monotonic() - start_time)
+            rr.set_time("time", duration=loop_start - start_time)
 
             # Get poses
             left_pose = xrt.get_left_controller_pose()
@@ -594,9 +611,9 @@ def run_visualization():
                 )
             )
 
-            # === Console dashboard (every 5 iters, ~10 Hz) ===
-            if iteration % 5 == 0:
-                elapsed = time.monotonic() - start_time
+            # === Console dashboard (every 3 iters, ~10 Hz) ===
+            if iteration % 3 == 0:
+                elapsed = time.perf_counter() - start_time
                 lines = format_status_block(
                     iteration=iteration,
                     elapsed=elapsed,
@@ -616,7 +633,8 @@ def run_visualization():
                 sys.stdout.flush()
                 log_line_count = len(lines)
 
-            time.sleep(0.02)  # ~50 Hz
+            dt = time.perf_counter() - loop_start
+            precise_sleep(MAIN_LOOP_DT - dt)
             iteration += 1
 
     except KeyboardInterrupt:
